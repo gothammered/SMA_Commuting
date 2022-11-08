@@ -187,7 +187,7 @@ def calcAvgCommDist(t_year):
     plt.show()
 
 
-def calcCommDiff(t_year):
+def calcCommDiff(t_year, is_p):
     if t_year not in ['2006', '2010', '2016']:
         raise Exception('Not a vaild year')
 
@@ -247,10 +247,21 @@ def calcCommDiff(t_year):
 
     minCommDist['diffDist'] = minCommDist['sumDist'] - minCommDist['minDist']
 
+    # exclude diffDist < 0
+    minCommDist = minCommDist[minCommDist['diffDist'] >= 0]
+
     # Can't divide by 0
     minCommDist = minCommDist[minCommDist['minDist'].notna()]
     minCommDist = minCommDist[minCommDist['minDist'] != 0]
     minCommDist['diffDist_p'] = minCommDist['diffDist'] / minCommDist['minDist']
+
+    if is_p == True:
+        plot_var = 'diffDist_p'
+        commDiff_dir = './result/fig/commDiff_p_{0}.png'.format(t_year)
+    else:
+        plot_var = 'diffDist'
+        commDiff_dir = './result/fig/commDiff_{0}.png'.format(t_year)
+
 
     # Plot the difference
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(8, 8))
@@ -260,13 +271,13 @@ def calcCommDiff(t_year):
     fig.suptitle('Average difference between total commuting distance and optimal commuting distance\nCase of double-income households({0})'.format(t_year))
     ax1.set_xlabel('Value\n(avg: {0})'.format(round(minCommDist['diffDist'].mean(), 3)))
     ax1.set_ylim(0, 50000)
-    ax2.set_xlabel('Proportion\n(Difference / Sum)\n(avg: {0})'.format(round(minCommDist['diffDist_p'].mean(), 3)))
+    ax2.set_xlabel('Proportion\n(Difference / Optimal)\n(avg: {0})'.format(round(minCommDist['diffDist_p'].mean(), 3)))
     ax2.set_ylim(0, 20)
 
     fig.savefig('./result/fig/commDistDiff_{0}.png'.format(t_year), dpi=300)
     plt.show()
 
-    minCommDist = pd.pivot_table(minCommDist, index='ADM_CD_O', values='diffDist_p', aggfunc='mean')
+    minCommDist = pd.pivot_table(minCommDist, index='ADM_CD_O', values=plot_var, aggfunc='mean')
 
     # Moran's I and plot
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 9))
@@ -276,32 +287,29 @@ def calcCommDiff(t_year):
     fig.subplots_adjust(left=0.05, right=0.95, bottom=0.05, top=0.95)
 
     gdf = gdf.join(minCommDist, how='left')
-    gdf.plot('diffDist_p', ax=ax1, legend=True, legend_kwds={'shrink': 0.5})
+    gdf.plot(plot_var, ax=ax1, legend=True, legend_kwds={'shrink': 0.5})
     ax1.axis('off')
 
     # Calculate Moran's I
-    gdf = gdf[gdf['diffDist_p'].notna()]
+    gdf = gdf[gdf[plot_var].notna()]
 
     # Use Kernel weight
     w = weights.distance.Kernel.from_dataframe(gdf)
     w.transform = 'R'
 
-    moran = Moran(gdf['diffDist_p'], w)
+    moran = Moran(gdf[plot_var], w)
     print(moran.I)
     print(moran.p_sim)
 
-    lisa = Moran_Local(gdf['diffDist_p'], w, permutations=99)
+    lisa = Moran_Local(gdf[plot_var], w, permutations=99)
 
     esdaplot.lisa_cluster(lisa, gdf, p=0.05, ax=ax2)
     ax2.set_title("Local Moran's I")
     fig.text(0.9, 0.1, "Global Moran's I = {0}, p = {1}".format(round(moran.I, 3), round(moran.p_sim, 3)), ha='right',
              va='bottom')
-    fig.savefig('./result/fig/commDiff_p_{0}.png'.format(t_year), dpi=300)
+    fig.savefig(commDiff_dir, dpi=300)
     plt.show()
 
 
-
-
-
 for t_year in tqdm(['2006', '2010', '2016']):
-    calcCommDiff(t_year)
+    calcCommDiff(t_year, False)
