@@ -253,7 +253,7 @@ def calcCommDiff(t_year, is_p):
     # Can't divide by 0
     minCommDist = minCommDist[minCommDist['minDist'].notna()]
     minCommDist = minCommDist[minCommDist['minDist'] != 0]
-    minCommDist['diffDist_p'] = minCommDist['diffDist'] / minCommDist['minDist']
+    minCommDist['diffDist_p'] = minCommDist['diffDist'] / minCommDist['sumDist']
 
     if is_p == True:
         plot_var = 'diffDist_p'
@@ -312,4 +312,4 @@ def calcCommDiff(t_year, is_p):
 
 
 for t_year in tqdm(['2006', '2010', '2016']):
-    calcCommDiff(t_year, False)
+    calcCommDiff(t_year, True)
